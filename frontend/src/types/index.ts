@@ -73,6 +73,8 @@ export interface TestConfig {
   thresholds: ThresholdConfig[]
   // 执行控制
   stopOnFailure?: boolean
+  // 数据驱动
+  dataFile?: string
 }
 
 export interface TestConfigResponse extends TestConfig {

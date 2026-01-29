@@ -32,7 +32,9 @@ class TestConfigBase(BaseModel):
     vus: int = Field(default=1, ge=1, le=1000, description="虚拟用户数")
     duration: str = Field(default="30s", description="持续时间")
     stages: Optional[List[StageConfig]] = Field(default=None, description="阶段配置")
+    stages: Optional[List[StageConfig]] = Field(default=None, description="阶段配置")
     thresholds: Optional[List[ThresholdConfig]] = Field(default=None, description="阈值配置")
+    data_file: Optional[str] = Field(default=None, description="数据文件路径(CSV)")
 
 
 class TestConfigCreate(TestConfigBase):
@@ -51,6 +53,7 @@ class TestConfigUpdate(BaseModel):
     duration: Optional[str] = None
     stages: Optional[List[StageConfig]] = None
     thresholds: Optional[List[ThresholdConfig]] = None
+    data_file: Optional[str] = None
 
 
 class TestConfigResponse(TestConfigBase):
@@ -94,3 +97,4 @@ class RunTestRequest(BaseModel):
     duration: str = Field(default="30s", description="持续时间")
     stages: Optional[List[StageConfig]] = Field(default=None, description="阶段配置")
     thresholds: Optional[List[ThresholdConfig]] = Field(default=None, description="阈值配置")
+    data_file: Optional[str] = Field(default=None, description="数据文件路径")

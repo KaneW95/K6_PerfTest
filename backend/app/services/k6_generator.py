@@ -31,6 +31,7 @@ class K6ScriptGenerator:
         rps_stages: Optional[List[Dict[str, Any]]] = None,
         thresholds: Optional[List[Dict[str, str]]] = None,
         stop_on_failure: bool = False,
+        data_file: Optional[str] = None,
     ) -> str:
         """
         Generate K6 script and return the file path.
@@ -71,6 +72,7 @@ class K6ScriptGenerator:
             rps_stages=rps_stages,
             thresholds=thresholds,
             stop_on_failure=stop_on_failure,
+            data_file=data_file,
         )
         
         # Generate unique filename
@@ -102,6 +104,7 @@ class K6ScriptGenerator:
         rps_stages: Optional[List[Dict[str, Any]]] = None,
         thresholds: Optional[List[Dict[str, str]]] = None,
         stop_on_failure: bool = False,
+        data_file: Optional[str] = None,
     ) -> str:
         """Generate K6 script content without saving to file."""
         return self._build_script(
@@ -120,6 +123,7 @@ class K6ScriptGenerator:
             rps_stages=rps_stages,
             thresholds=thresholds,
             stop_on_failure=stop_on_failure,
+            data_file=data_file,
         )
     
     def _build_script(
@@ -139,6 +143,7 @@ class K6ScriptGenerator:
         rps_stages: Optional[List[Dict[str, Any]]],
         thresholds: Optional[List[Dict[str, str]]],
         stop_on_failure: bool = False,
+        data_file: Optional[str] = None,
     ) -> str:
         """Build K6 script content."""
         
@@ -216,9 +221,28 @@ class K6ScriptGenerator:
         method_lower = method.lower()
         
         if method_lower in ["post", "put", "patch"] and body:
+            # Escape special characters for JS template literal
             body_escaped = body.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
+            
+            # If data file is provided, replace {{var}} with ${item.var}
+            if data_file:
+                import re
+                # Use non-greedy match to handle multiple variables in one line
+                # Support both standard {{var}} and URL-encoded %7B%7Bvar%7D%7D
+                def replace_match(match):
+                    var_name = match.group(1).strip()
+                    return f'${{item.{var_name}}}'
+                
+                # Match either {{...}} or %7B%7B...%7D%7D
+                body_escaped = re.sub(r'(?:\{\{|%7B%7B)(.+?)(?:\}\}|%7D%7D)', replace_match, body_escaped)
+            
             request_code = f'''const payload = `{body_escaped}`;
   
+  // Log request body for the first 5 iterations for debugging
+  if (exec.scenario.iterationInTest < 5) {{
+      console.log(`[Iter ${{exec.scenario.iterationInTest}}] Request Body: ${{payload}}`);
+  }}
+
   const res = http.{method_lower}(url, payload, params);'''
         else:
             if method_lower == "get":
@@ -234,7 +258,30 @@ class K6ScriptGenerator:
             "import { check, sleep } from 'k6';",
             "import { Rate, Trend } from 'k6/metrics';"
         ]
-        if stop_on_failure:
+        
+        # Add imports for data driven test
+        data_loading_code = ""
+        item_retrieval_code = ""
+        
+        if data_file:
+            imports.append("import { SharedArray } from 'k6/data';")
+            imports.append("import papaparse from 'https://jslib.k6.io/papaparse/5.1.1/index.js';")
+            
+            # Escape path for JS string
+            data_file_js = data_file.replace("\\", "\\\\")
+            
+            data_loading_code = f'''
+// Load CSV data
+const data = new SharedArray('data', function () {{
+  return papaparse.parse(open('{data_file_js}'), {{ header: true }}).data;
+}});
+'''
+            item_retrieval_code = """
+  // Get data row for current iteration (round-robin)
+  const item = data[exec.scenario.iterationInTest % data.length];
+"""
+
+        if stop_on_failure or data_file:
             imports.append("import exec from 'k6/execution';")
         
         imports_str = "\n".join(imports)
@@ -250,14 +297,14 @@ class K6ScriptGenerator:
 // Custom metrics
 const errorRate = new Rate('errors');
 const responseTime = new Trend('response_time');
-
+{data_loading_code}
 export const options = {{
 {options_str}
 }};
 
 export default function () {{
   const url = '{url}';
-  
+  {item_retrieval_code}
   const params = {{
     headers: {headers_json},
   }};

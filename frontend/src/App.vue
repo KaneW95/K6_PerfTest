@@ -222,6 +222,7 @@ function handleRunTest(config: TestConfig) {
     loadSubMode: config.loadSubMode,
     thresholds: config.thresholds.filter(t => t.metric && t.condition),
     stopOnFailure: config.stopOnFailure,
+    dataFile: config.dataFile,
   }
 
   // Add mode-specific config based on two-level structure

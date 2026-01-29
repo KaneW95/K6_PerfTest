@@ -82,6 +82,37 @@
         </template>
       </n-form-item>
 
+      <!-- Data Configuration -->
+      <n-divider title-placement="left">数据配置 (可选)</n-divider>
+      <n-form-item label="上传数据文件 (CSV)">
+        <n-upload
+          action="/api/upload/data"
+          :max="1"
+          name="file"
+          response-type="json"
+          @finish="handleUploadFinish"
+          @error="handleUploadError"
+          :show-file-list="true"
+        >
+          <n-button :disabled="loading">上传 CSV 文件</n-button>
+        </n-upload>
+      </n-form-item>
+      <!-- Initial Spacer not working in form item context well, use simple margin -->
+      <n-form-item>
+         <n-button @click="downloadTemplate" size="small">
+            <template #icon><n-icon :component="CloudDownloadOutline" /></template>
+            下载 CSV 模板
+         </n-button>
+      </n-form-item>
+      <n-alert type="info" v-if="formData.dataFile" :bordered="false" closable @close="formData.dataFile = undefined">
+        已关联数据文件: {{ formData.dataFile }}
+        <br>
+        <span style="font-size: 0.9em; opacity: 0.8">
+          提示：在请求体中使用 <span v-pre>{{ column_name }}</span> 引用 CSV 列数据。
+        </span>
+      </n-alert>
+
+
       <!-- Performance Metrics -->
       <n-divider title-placement="left">压测指标</n-divider>
 
@@ -453,7 +484,8 @@ import {
   AddOutline, 
   CloseOutline,
   CodeSlashOutline,
-  CopyOutline
+  CopyOutline,
+  CloudDownloadOutline
 } from '@vicons/ionicons5'
 import type { TestConfig } from '@/types'
 
@@ -626,6 +658,50 @@ function addThreshold() {
 
 function removeThreshold(index: number) {
   formData.thresholds.splice(index, 1)
+}
+
+// Upload handlers
+function handleUploadFinish({ file, event }: { file: any, event: ProgressEvent }) {
+  const xhr = event.target as XMLHttpRequest
+  try {
+    let res = xhr.response
+    // If response is a string, try to parse it
+    if (typeof res === 'string') {
+      try {
+        res = JSON.parse(res)
+      } catch (e) {
+        // Not JSON, assume error text
+        throw new Error('Invalid JSON response')
+      }
+    }
+    
+    // Check if response has expected structure (e.g. path)
+    if (res && res.path) {
+      formData.dataFile = res.path // Store server absolute path
+      message.success(`文件 ${file.name} 上传成功`)
+    } else {
+       throw new Error('Invalid response structure')
+    }
+  } catch (e) {
+    console.error('Upload parse error', e)
+    let errorMsg = 'Unknown error'
+    if (xhr.response) {
+       if (typeof xhr.response === 'string') {
+          errorMsg = xhr.response.substring(0, 200)
+       } else {
+          errorMsg = JSON.stringify(xhr.response).substring(0, 200)
+       }
+    }
+    message.error(`文件上传失败: ${errorMsg}`)
+  }
+}
+
+function handleUploadError() {
+  message.error('文件上传失败')
+}
+
+function downloadTemplate() {
+  window.open('/api/template/csv', '_blank')
 }
 
 // Submit handler

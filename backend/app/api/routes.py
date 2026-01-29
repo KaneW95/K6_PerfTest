@@ -148,20 +148,47 @@ async def debug_request(request: DebugRequest):
             response = await client.request(
                 method=request.method,
                 url=request.url,
-                headers=request.headers,
+                headers={**request.headers, "Accept-Encoding": "identity"},  # Force uncompressed response
                 content=request.body if request.body else None,
             )
+            
+        print(f"Debug Response Headers: {dict(response.headers)}")
+        print(f"Debug Response Content Start (Hex): {response.content[:20].hex()}")
+
         
         duration = (datetime.now() - start_time).total_seconds() * 1000
         
         # Convert headers to dict
         response_headers = dict(response.headers)
         
+        # Handle response body
+        content = response.content
+        
+        # Check for GZIP magic number (1f 8b) if not automatically handled
+        if content.startswith(b'\x1f\x8b'):
+            try:
+                import gzip
+                content = gzip.decompress(content)
+            except Exception:
+                pass
+
+        # Try to decode content
+        try:
+            # Try UTF-8 first
+            body_text = content.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                # Try GBK for Chinese sites
+                body_text = content.decode('gbk')
+            except UnicodeDecodeError:
+                # Fallback to ISO-8859-1 or whatever header says, or just string repr
+                body_text = response.text
+
         return DebugResponse(
             status=response.status_code,
             duration=round(duration, 2),
             headers=response_headers,
-            body=response.text[:10000],  # Limit response body size
+            body=body_text[:10000],  # Limit response body size
         )
     except httpx.RequestError as e:
         raise HTTPException(status_code=502, detail=f"Request failed: {str(e)}")
@@ -272,6 +299,8 @@ async def run_test_via_websocket(websocket: WebSocket, data: dict, db: Session, 
         stages_data = config_data.get("stages", [])
         rps_stages_data = config_data.get("rpsStages", [])
         thresholds_data = config_data.get("thresholds", [])
+        data_file = config_data.get("dataFile")
+        print(f"DEBUG: Processing config. dataFile from payload: {data_file}")
         
         # Create config record
         db_config = TestConfig(
@@ -284,6 +313,7 @@ async def run_test_via_websocket(websocket: WebSocket, data: dict, db: Session, 
             duration=config_data.get("duration", "30s"),
             stages=stages_data if stages_data else None,
             thresholds=thresholds_data if thresholds_data else None,
+            data_file=data_file,
         )
         db.add(db_config)
         db.commit()
@@ -326,6 +356,7 @@ async def run_test_via_websocket(websocket: WebSocket, data: dict, db: Session, 
             rps_stages=rps_stages_data if rps_stages_data else None,
             thresholds=thresholds_data if thresholds_data else None,
             stop_on_failure=config_data.get("stopOnFailure", False),
+            data_file=data_file,
         )
         
         await manager.send_log(websocket, f"Generated script: {script_path}")

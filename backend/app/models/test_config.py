@@ -21,6 +21,7 @@ class TestConfig(Base):
     duration = Column(String(20), nullable=False, default="30s", comment="持续时间")
     stages = Column(JSON, nullable=True, comment="阶段配置")
     thresholds = Column(JSON, nullable=True, comment="阈值配置")
+    data_file = Column(String(255), nullable=True, comment="数据文件路径")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
     
