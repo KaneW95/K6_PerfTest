@@ -26,6 +26,9 @@ env/
 backend/venv/
 backend/__pycache__/
 backend/debug_db.py
+backend/scripts/
+backend/data/*.csv
+backend/results/
 
 # K6 Results
 backend/results/*.json

@@ -150,7 +150,7 @@
               <n-input-number 
                 v-model:value="formData.vus" 
                 :min="1" 
-                :max="1000"
+                :max="100000"
                 placeholder="10"
                 :disabled="loading"
                 style="width: 100%"
@@ -232,7 +232,7 @@
               <n-input-number 
                 v-model:value="formData.rps" 
                 :min="1" 
-                :max="10000"
+                :max="100000"
                 placeholder="100"
                 :disabled="loading"
                 style="width: 100%"
@@ -255,7 +255,7 @@
               <n-input-number 
                 v-model:value="formData.preAllocatedVUs" 
                 :min="1" 
-                :max="1000"
+                :max="100000"
                 placeholder="10"
                 :disabled="loading"
                 style="width: 100%"
@@ -267,7 +267,7 @@
               <n-input-number 
                 v-model:value="formData.maxVUs" 
                 :min="1" 
-                :max="10000"
+                :max="100000"
                 placeholder="100"
                 :disabled="loading"
                 style="width: 100%"
@@ -333,7 +333,7 @@
               <n-input-number 
                 v-model:value="formData.preAllocatedVUs" 
                 :min="1" 
-                :max="1000"
+                :max="100000"
                 placeholder="10"
                 :disabled="loading"
                 style="width: 100%"
@@ -345,7 +345,7 @@
               <n-input-number 
                 v-model:value="formData.maxVUs" 
                 :min="1" 
-                :max="10000"
+                :max="100000"
                 placeholder="100"
                 :disabled="loading"
                 style="width: 100%"
